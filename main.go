@@ -24,9 +24,12 @@ func main() {
 		web.HomeHandler(w, r)
 	})
 	http.HandleFunc("/about", web.AboutHandler)
+	http.HandleFunc("/ask", web.AskHandler)
 	http.HandleFunc("/contributors", web.ContributorsHandler)
 	http.HandleFunc("/leaderboard", web.LeaderboardHandler)
 	http.HandleFunc("/api/kudos/", web.KudosHandler)
+	http.HandleFunc("/api/celebrate/", web.CelebrateHandler)
+	http.HandleFunc("/api/milestone/", web.CheckMilestone)
 	http.HandleFunc("/api/ask", copilotapi.AskHandler)
 
 	log.Println("Server starting on http://localhost:8080")

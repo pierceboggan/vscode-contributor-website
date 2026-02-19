@@ -15,6 +15,7 @@
         <a href="/" class="nav-link">Home</a>
         <a href="/contributors" class="nav-link active">Contributors</a>
         <a href="/leaderboard" class="nav-link">Leaderboard</a>
+        <a href="/ask" class="nav-link">Ask AI</a>
         <a href="/about" class="nav-link">About</a>
         <span class="spacer"></span>
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
@@ -43,7 +44,43 @@
             <p>Fetching contributor data from VS Code release notes&hellip;</p>
             <p>Please refresh the page in a moment.</p>
         </div>
-        {{else if .Contributors}}
+        {{else}}
+        
+        <!-- Ask Copilot section - prominent placement -->
+        <section class="ask-copilot-hero">
+            <div class="ask-hero-content">
+                <div class="ask-hero-icon">✨</div>
+                <div class="ask-hero-text">
+                    <h2>Ask Copilot about Contributors</h2>
+                    <p>Get instant answers about VS Code contributors, releases, and PRs</p>
+                </div>
+            </div>
+            <form id="ask-form" onsubmit="return askCopilot(event)">
+                <div class="ask-input-row">
+                    <input type="text" id="ask-input" placeholder="e.g. Who contributed the most PRs?" autocomplete="off" required>
+                    <button type="submit" class="btn btn-primary" id="ask-btn">
+                        <span id="btn-text">Ask</span>
+                        <span id="btn-spinner" class="btn-spinner" style="display: none;"></span>
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Real-time activity log -->
+            <div id="activity-log" class="activity-log" style="display: none;">
+                <div class="activity-header">
+                    <span class="activity-indicator"></span>
+                    <span>Processing</span>
+                </div>
+                <div id="activity-items" class="activity-items"></div>
+            </div>
+            
+            <div id="ask-result" class="ask-result" style="display: none;">
+                <div id="ask-answer"></div>
+            </div>
+            <div id="ask-error" class="ask-error" style="display: none;"></div>
+        </section>
+
+        {{if .Contributors}}
         <p class="contributor-count"><strong>{{len .Contributors}}</strong> contributors in v{{.Selected}}</p>
         <div class="contributors">
             {{range .Contributors}}
@@ -65,34 +102,24 @@
                     {{end}}
                 </div>
                 {{end}}
-                <button class="kudos-btn" data-user="{{.GitHubUser}}" onclick="sendKudos(this)">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.655 14.916v-.001h-.002l-.006-.003-.018-.01a22 22 0 01-.306-.17 27.4 27.4 0 01-3.535-2.44C2.088 10.882.5 8.992.5 6.5a4.5 4.5 0 017.5-3.35A4.5 4.5 0 0115.5 6.5c0 2.492-1.588 4.382-3.288 5.792a27.4 27.4 0 01-3.842 2.611l-.018.01-.006.003h-.002z"/></svg>
-                    <span class="kudos-count">{{.Kudos}}</span>
-                </button>
+                <div class="contributor-actions">
+                    <button class="kudos-btn" data-user="{{.GitHubUser}}" onclick="sendKudos(this)">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.655 14.916v-.001h-.002l-.006-.003-.018-.01a22 22 0 01-.306-.17 27.4 27.4 0 01-3.535-2.44C2.088 10.882.5 8.992.5 6.5a4.5 4.5 0 017.5-3.35A4.5 4.5 0 0115.5 6.5c0 2.492-1.588 4.382-3.288 5.792a27.4 27.4 0 01-3.842 2.611l-.018.01-.006.003h-.002z"/></svg>
+                        <span class="kudos-count">{{.Kudos}}</span>
+                    </button>
+                    {{if .ShowCelebrate}}
+                    <button class="celebrate-btn" onclick="generateCelebration(this, '{{.GitHubUser}}', '{{.Name}}', {{.Milestone}})">
+                        🎉 Celebrate {{.Milestone}} PRs!
+                    </button>
+                    {{end}}
+                </div>
             </div>
             {{end}}
         </div>
         {{else}}
         <p>No contributor data available for this release.</p>
         {{end}}
-
-        <section class="ask-copilot">
-            <h2>Ask Copilot</h2>
-            <p class="ask-subtitle">Ask natural-language questions about VS Code contributors, releases, and PRs.</p>
-            <form id="ask-form" onsubmit="return askCopilot(event)">
-                <div class="ask-input-row">
-                    <input type="text" id="ask-input" placeholder="e.g. Who contributed the most PRs in the last 3 releases?" autocomplete="off" required>
-                    <button type="submit" class="btn btn-primary" id="ask-btn">Ask</button>
-                </div>
-            </form>
-            <div id="ask-result" class="ask-result" hidden>
-                <div id="ask-answer"></div>
-            </div>
-            <div id="ask-loading" class="ask-loading" hidden>
-                <span class="spinner"></span> Thinking&hellip;
-            </div>
-            <div id="ask-error" class="ask-error" hidden></div>
-        </section>
+        {{end}}
     </main>
 
     <footer>
@@ -141,6 +168,25 @@
             observer.observe(el);
         });
 
+        function createFloatingHearts(btn) {
+            const hearts = ['❤️', '💕', '💖', '💗', '💓'];
+            const rect = btn.getBoundingClientRect();
+            const count = 5 + Math.floor(Math.random() * 4);
+            
+            for (let i = 0; i < count; i++) {
+                const heart = document.createElement('span');
+                heart.className = 'floating-heart';
+                heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+                heart.style.left = (rect.left + rect.width / 2 + (Math.random() - 0.5) * 40) + 'px';
+                heart.style.top = (rect.top + window.scrollY) + 'px';
+                heart.style.setProperty('--heart-rotate', (Math.random() - 0.5) * 40 + 'deg');
+                heart.style.animationDuration = (0.8 + Math.random() * 0.4) + 's';
+                heart.style.animationDelay = (i * 0.05) + 's';
+                document.body.appendChild(heart);
+                setTimeout(() => heart.remove(), 1500);
+            }
+        }
+
         async function sendKudos(btn) {
             const user = btn.dataset.user;
             try {
@@ -149,7 +195,8 @@
                     const data = await resp.json();
                     btn.querySelector('.kudos-count').textContent = data.count;
                     btn.classList.add('kudos-clicked');
-                    setTimeout(() => btn.classList.remove('kudos-clicked'), 400);
+                    createFloatingHearts(btn);
+                    setTimeout(() => btn.classList.remove('kudos-clicked'), 600);
                 }
             } catch (e) {
                 console.error('Kudos error:', e);
@@ -164,14 +211,46 @@
 
             const resultEl = document.getElementById('ask-result');
             const answerEl = document.getElementById('ask-answer');
-            const loadingEl = document.getElementById('ask-loading');
+            const activityLog = document.getElementById('activity-log');
+            const activityItems = document.getElementById('activity-items');
             const errorEl = document.getElementById('ask-error');
             const btn = document.getElementById('ask-btn');
+            const btnText = document.getElementById('btn-text');
+            const btnSpinner = document.getElementById('btn-spinner');
 
-            resultEl.hidden = true;
-            errorEl.hidden = true;
-            loadingEl.hidden = false;
+            // Hide previous results, show activity log
+            resultEl.style.display = 'none';
+            errorEl.style.display = 'none';
+            activityItems.innerHTML = '';
+            activityLog.style.display = 'block';
             btn.disabled = true;
+            btnText.style.display = 'none';
+            btnSpinner.style.display = 'inline-block';
+
+            // Add activity items with timestamps
+            function addActivity(icon, text) {
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                item.innerHTML = `<span class="activity-time">${time}</span><span class="activity-icon">${icon}</span><span class="activity-text">${text}</span>`;
+                activityItems.appendChild(item);
+                activityItems.scrollTop = activityItems.scrollHeight;
+            }
+
+            addActivity('🚀', 'Starting request...');
+            
+            // Simulate activity updates while waiting
+            const activities = [
+                { delay: 800, icon: '🔍', text: 'Connecting to GitHub Copilot' },
+                { delay: 2000, icon: '📝', text: 'Analyzing your question' },
+                { delay: 4000, icon: '🔧', text: 'Querying contributor database' },
+                { delay: 6000, icon: '📊', text: 'Processing release data' },
+                { delay: 8000, icon: '✍️', text: 'Generating response...' },
+            ];
+            
+            const timeouts = activities.map(a => 
+                setTimeout(() => addActivity(a.icon, a.text), a.delay)
+            );
 
             try {
                 const resp = await fetch('/api/ask', {
@@ -179,22 +258,310 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query: query }),
                 });
+                
+                // Clear pending activity timeouts
+                timeouts.forEach(t => clearTimeout(t));
+                
                 if (!resp.ok) {
                     const text = await resp.text();
                     throw new Error(text || 'Request failed');
                 }
+                
+                addActivity('✅', 'Response received!');
+                
                 const data = await resp.json();
-                answerEl.textContent = data.answer || 'No answer received.';
-                resultEl.hidden = false;
+                
+                // Brief delay to show completion
+                await new Promise(r => setTimeout(r, 500));
+                
+                answerEl.innerHTML = formatMarkdown(data.answer || 'No answer received.');
+                activityLog.style.display = 'none';
+                resultEl.style.display = 'block';
             } catch (err) {
+                timeouts.forEach(t => clearTimeout(t));
+                addActivity('❌', 'Error: ' + err.message);
                 errorEl.textContent = 'Error: ' + err.message;
-                errorEl.hidden = false;
+                activityLog.style.display = 'none';
+                errorEl.style.display = 'block';
             } finally {
-                loadingEl.hidden = true;
                 btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnSpinner.style.display = 'none';
             }
             return false;
         }
+
+        function formatMarkdown(text) {
+            return text
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/@(\w[-\w]*)/g, '<a href="https://github.com/$1" target="_blank">@$1</a>')
+                .replace(/\n/g, '<br>');
+        }
+    </script>
+
+    <!-- Floating Chat Widget -->
+    <button class="chat-widget-trigger" id="chatWidgetTrigger" aria-label="Open AI Assistant">
+        <svg class="icon-chat" width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM5.5 4.002h5a.5.5 0 01.5.5v5a.5.5 0 01-.5.5h-2v2.498a.5.5 0 01-.854.354L4.646 9.854A.5.5 0 014.5 9.5v-5a.5.5 0 01.5-.5l.5.002z"/>
+        </svg>
+        <svg class="icon-close" width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/>
+        </svg>
+    </button>
+
+    <div class="chat-widget-panel" id="chatWidgetPanel">
+        <div class="chat-widget-header">
+            <div class="chat-widget-header-icon">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM5.5 4.002h5a.5.5 0 01.5.5v5a.5.5 0 01-.5.5h-2v2.498a.5.5 0 01-.854.354L4.646 9.854A.5.5 0 014.5 9.5v-5a.5.5 0 01.5-.5l.5.002z"/>
+                </svg>
+            </div>
+            <div class="chat-widget-header-text">
+                <h3>Ask AI</h3>
+                <p>Powered by GitHub Copilot</p>
+            </div>
+        </div>
+        <div class="chat-widget-messages" id="widgetMessages">
+            <div class="chat-welcome">
+                <p>👋 Ask me about VS Code contributors!</p>
+                <div class="suggested-questions">
+                    <button class="suggestion-btn" onclick="widgetAsk('Who are the top contributors?')">Top contributors</button>
+                    <button class="suggestion-btn" onclick="widgetAsk('What releases are available?')">Available releases</button>
+                </div>
+            </div>
+        </div>
+        <form class="chat-widget-input" onsubmit="return handleWidgetSubmit(event)">
+            <div class="chat-input-wrapper">
+                <input type="text" id="widgetInput" class="chat-input" placeholder="Ask a question..." autocomplete="off" />
+                <button type="submit" class="chat-send-btn" id="widgetSendBtn">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M1.724 1.053a.5.5 0 00-.714.545l1.403 4.85a.5.5 0 00.397.354l5.69.953c.268.053.268.437 0 .49l-5.69.953a.5.5 0 00-.397.354l-1.403 4.85a.5.5 0 00.714.545l13-6.5a.5.5 0 000-.894l-13-6.5z"/>
+                    </svg>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Chat widget functionality
+        const widgetTrigger = document.getElementById('chatWidgetTrigger');
+        const widgetPanel = document.getElementById('chatWidgetPanel');
+        const widgetMessages = document.getElementById('widgetMessages');
+        const widgetInput = document.getElementById('widgetInput');
+        const widgetSendBtn = document.getElementById('widgetSendBtn');
+        let widgetLoading = false;
+
+        widgetTrigger.addEventListener('click', () => {
+            const isOpen = widgetPanel.classList.toggle('open');
+            widgetTrigger.classList.toggle('active', isOpen);
+            if (isOpen) widgetInput.focus();
+        });
+
+        function addWidgetMessage(content, isUser) {
+            const welcome = widgetMessages.querySelector('.chat-welcome');
+            if (welcome) welcome.style.display = 'none';
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `chat-message ${isUser ? 'user' : 'assistant'}`;
+            msgDiv.innerHTML = `<div class="message-content">${isUser ? escapeHtmlWidget(content) : content}</div>`;
+            widgetMessages.appendChild(msgDiv);
+            widgetMessages.scrollTop = widgetMessages.scrollHeight;
+        }
+
+        function escapeHtmlWidget(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addWidgetLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'chat-message assistant';
+            loadingDiv.id = 'widgetLoading';
+            loadingDiv.innerHTML = '<div class="message-content"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+            widgetMessages.appendChild(loadingDiv);
+            widgetMessages.scrollTop = widgetMessages.scrollHeight;
+        }
+
+        function removeWidgetLoading() {
+            const loading = document.getElementById('widgetLoading');
+            if (loading) loading.remove();
+        }
+
+        async function widgetAsk(query) {
+            if (widgetLoading || !query.trim()) return;
+            widgetLoading = true;
+            widgetSendBtn.disabled = true;
+            widgetInput.value = '';
+            
+            addWidgetMessage(query, true);
+            addWidgetLoading();
+            
+            try {
+                const resp = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                removeWidgetLoading();
+                if (!resp.ok) throw new Error('Request failed');
+                const data = await resp.json();
+                addWidgetMessage(data.answer || 'Sorry, I could not process that.', false);
+            } catch (e) {
+                removeWidgetLoading();
+                addWidgetMessage('Sorry, something went wrong.', false);
+            } finally {
+                widgetLoading = false;
+                widgetSendBtn.disabled = false;
+                widgetInput.focus();
+            }
+        }
+
+        function handleWidgetSubmit(e) {
+            e.preventDefault();
+            widgetAsk(widgetInput.value);
+            return false;
+        }
+    </script>
+
+    <!-- Video Celebration Modal -->
+    <div class="video-modal-overlay" id="videoModal">
+        <div class="video-modal">
+            <button class="video-modal-close" onclick="closeVideoModal()">&times;</button>
+            <h2>🎉 Celebration Video</h2>
+            <div class="video-modal-content" id="videoModalContent">
+                <div class="video-modal-loading">
+                    <div class="spinner"></div>
+                    <p>Generating your personalized celebration video...</p>
+                    <p id="videoStatus">This may take a minute</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let videoPollingInterval = null;
+
+        function openVideoModal() {
+            document.getElementById('videoModal').classList.add('active');
+        }
+
+        function closeVideoModal() {
+            document.getElementById('videoModal').classList.remove('active');
+            if (videoPollingInterval) {
+                clearInterval(videoPollingInterval);
+                videoPollingInterval = null;
+            }
+        }
+
+        async function generateCelebration(btn, username, contributorName, milestone) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Generating...';
+            
+            openVideoModal();
+            document.getElementById('videoModalContent').innerHTML = `
+                <div class="video-modal-loading">
+                    <div class="spinner"></div>
+                    <p>Creating a personalized video for <strong>${contributorName}</strong></p>
+                    <p id="videoStatus">Celebrating ${milestone} Pull Requests!</p>
+                </div>
+            `;
+
+            try {
+                const resp = await fetch('/api/celebrate/' + encodeURIComponent(username), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contributor_name: contributorName,
+                        milestone: milestone
+                    })
+                });
+
+                const data = await resp.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (data.video_id) {
+                    pollVideoStatus(username, data.video_id, btn, contributorName);
+                }
+            } catch (e) {
+                console.error('Celebration error:', e);
+                document.getElementById('videoModalContent').innerHTML = `
+                    <div class="video-modal-loading">
+                        <p>😔 Sorry, couldn't generate the video.</p>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">${e.message}</p>
+                    </div>
+                `;
+                btn.disabled = false;
+                btn.innerHTML = '🎉 Celebrate!';
+            }
+        }
+
+        function pollVideoStatus(username, videoId, btn, contributorName) {
+            let attempts = 0;
+            const maxAttempts = 60; // 5 minutes max
+
+            videoPollingInterval = setInterval(async () => {
+                attempts++;
+                
+                if (attempts > maxAttempts) {
+                    clearInterval(videoPollingInterval);
+                    document.getElementById('videoStatus').textContent = 'Video is taking longer than expected...';
+                    btn.disabled = false;
+                    btn.innerHTML = '🎉 Celebrate!';
+                    return;
+                }
+
+                try {
+                    const resp = await fetch(`/api/celebrate/${encodeURIComponent(username)}?video_id=${videoId}`);
+                    const data = await resp.json();
+
+                    if (data.status === 'completed' && data.video_url) {
+                        clearInterval(videoPollingInterval);
+                        videoPollingInterval = null;
+                        
+                        document.getElementById('videoModalContent').innerHTML = `
+                            <video controls autoplay>
+                                <source src="${data.video_url}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);">
+                                Congratulations, ${contributorName}! 🎉
+                            </p>
+                        `;
+                        btn.disabled = false;
+                        btn.innerHTML = '🎉 Celebrate!';
+                    } else if (data.status === 'failed') {
+                        clearInterval(videoPollingInterval);
+                        document.getElementById('videoModalContent').innerHTML = `
+                            <div class="video-modal-loading">
+                                <p>😔 Video generation failed.</p>
+                            </div>
+                        `;
+                        btn.disabled = false;
+                        btn.innerHTML = '🎉 Celebrate!';
+                    } else {
+                        document.getElementById('videoStatus').textContent = `Processing... (${attempts * 5}s)`;
+                    }
+                } catch (e) {
+                    console.error('Poll error:', e);
+                }
+            }, 5000);
+        }
+
+        // Close modal on overlay click
+        document.getElementById('videoModal').addEventListener('click', function(e) {
+            if (e.target === this) closeVideoModal();
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeVideoModal();
+        });
     </script>
 </body>
 </html>

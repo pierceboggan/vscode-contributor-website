@@ -2,6 +2,7 @@ package web
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vscode-contributor-website/heygen"
 	"github.com/vscode-contributor-website/scraper"
 )
 
@@ -45,11 +47,14 @@ type VersionOption struct {
 }
 
 type ContributorView struct {
-	Name       string
-	GitHubUser string
-	AvatarURL  string
-	PRs        []PRView
-	Kudos      int
+	Name           string
+	GitHubUser     string
+	AvatarURL      string
+	PRs            []PRView
+	Kudos          int
+	TotalPRCount   int  // Total PRs across all releases
+	Milestone      int  // Current milestone reached (5, 10, 25, etc.)
+	ShowCelebrate  bool // Whether to show celebrate button
 }
 
 type PRView struct {
@@ -68,6 +73,13 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
 func AboutHandler(w http.ResponseWriter, r *http.Request) {
 	if err := templates.ExecuteTemplate(w, "about.html", nil); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Printf("Template error: %v", err)
+	}
+}
+
+func AskHandler(w http.ResponseWriter, r *http.Request) {
+	if err := templates.ExecuteTemplate(w, "ask.html", nil); err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Printf("Template error: %v", err)
 	}
@@ -125,14 +137,37 @@ func ContributorsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	data.Selected = selectedRelease.DisplayName
 
-	// Build contributor views with kudos counts
+	// Calculate total PR counts across all releases for milestone detection
+	totalPRCounts := make(map[string]int)
+	for _, v := range availableVersions {
+		rel, ok := scraper.GetRelease(v.ID)
+		if !ok {
+			continue
+		}
+		for _, c := range rel.Contributors {
+			totalPRCounts[c.GitHubUser] += len(c.PRs)
+		}
+	}
+
+	// Build contributor views with kudos counts and milestone info
 	kudosMu.RLock()
 	for _, c := range selectedRelease.Contributors {
+		totalPRs := totalPRCounts[c.GitHubUser]
+		milestone := 0
+		for _, m := range heygen.Milestones {
+			if totalPRs >= m {
+				milestone = m
+			}
+		}
+
 		cv := ContributorView{
-			Name:       c.Name,
-			GitHubUser: c.GitHubUser,
-			AvatarURL:  c.AvatarURL,
-			Kudos:      kudosStore[c.GitHubUser],
+			Name:          c.Name,
+			GitHubUser:    c.GitHubUser,
+			AvatarURL:     c.AvatarURL,
+			Kudos:         kudosStore[c.GitHubUser],
+			TotalPRCount:  totalPRs,
+			Milestone:     milestone,
+			ShowCelebrate: milestone >= 5 && heygenClient.IsConfigured(),
 		}
 		for _, pr := range c.PRs {
 			cv.PRs = append(cv.PRs, PRView{
@@ -176,6 +211,156 @@ func KudosHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// Celebrate video store
+var (
+	celebrateMu    sync.RWMutex
+	celebrateStore = make(map[string]string) // username -> videoID
+)
+
+var heygenClient = heygen.NewClient()
+
+// CelebrateHandler handles celebration video generation
+func CelebrateHandler(w http.ResponseWriter, r *http.Request) {
+	username := strings.TrimPrefix(r.URL.Path, "/api/celebrate/")
+	if username == "" || !validUser.MatchString(username) {
+		http.Error(w, "Invalid username", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	switch r.Method {
+	case "POST":
+		// Generate a new celebration video
+		if !heygenClient.IsConfigured() {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":   "HeyGen API not configured",
+				"configured": false,
+			})
+			return
+		}
+
+		// Parse request body for contributor details
+		var req struct {
+			ContributorName string `json:"contributor_name"`
+			Milestone       int    `json:"milestone"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Milestone == 0 {
+			req.Milestone = 5 // default milestone
+		}
+
+		resp, err := heygenClient.GenerateVideo(heygen.GenerateVideoRequest{
+			ContributorName: req.ContributorName,
+			GitHubUsername:  username,
+			Milestone:       req.Milestone,
+		})
+		if err != nil {
+			log.Printf("HeyGen error for %s: %v", username, err)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Failed to generate video",
+			})
+			return
+		}
+
+		// Store video ID for status polling
+		celebrateMu.Lock()
+		celebrateStore[username] = resp.VideoID
+		celebrateMu.Unlock()
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"video_id": resp.VideoID,
+			"status":   "pending",
+		})
+
+	case "GET":
+		// Check video status
+		videoID := r.URL.Query().Get("video_id")
+		if videoID == "" {
+			celebrateMu.RLock()
+			videoID = celebrateStore[username]
+			celebrateMu.RUnlock()
+		}
+
+		if videoID == "" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "not_found",
+			})
+			return
+		}
+
+		status, err := heygenClient.GetVideoStatus(videoID)
+		if err != nil {
+			log.Printf("HeyGen status error: %v", err)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Failed to get video status",
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"video_id":  videoID,
+			"status":    status.Status,
+			"video_url": status.VideoURL,
+		})
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// CheckMilestone returns milestone info for a contributor
+func CheckMilestone(w http.ResponseWriter, r *http.Request) {
+	username := strings.TrimPrefix(r.URL.Path, "/api/milestone/")
+	if username == "" || !validUser.MatchString(username) {
+		http.Error(w, "Invalid username", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Get contributor's PR count across all versions
+	allVersions := scraper.GetAvailableVersions()
+	prCount := 0
+	contributorName := username
+
+	for _, v := range allVersions {
+		rel, ok := scraper.GetRelease(v.ID)
+		if !ok {
+			continue
+		}
+		for _, c := range rel.Contributors {
+			if strings.EqualFold(c.GitHubUser, username) {
+				prCount += len(c.PRs)
+				if c.Name != "" {
+					contributorName = c.Name
+				}
+			}
+		}
+	}
+
+	// Find the milestone they've reached
+	milestone := 0
+	for _, m := range heygen.Milestones {
+		if prCount >= m {
+			milestone = m
+		}
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"username":         username,
+		"contributor_name": contributorName,
+		"pr_count":         prCount,
+		"milestone":        milestone,
+		"is_milestone":     heygen.IsMilestone(prCount),
+		"configured":       heygenClient.IsConfigured(),
+	})
 }
 
 // Leaderboard data types

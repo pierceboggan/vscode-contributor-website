@@ -15,6 +15,7 @@
         <a href="/" class="nav-link active">Home</a>
         <a href="/contributors" class="nav-link">Contributors</a>
         <a href="/leaderboard" class="nav-link">Leaderboard</a>
+        <a href="/ask" class="nav-link">Ask AI</a>
         <a href="/about" class="nav-link">About</a>
         <span class="spacer"></span>
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
@@ -139,6 +140,131 @@
         }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    </script>
+
+    <!-- Floating Chat Widget -->
+    <button class="chat-widget-trigger" id="chatWidgetTrigger" aria-label="Open AI Assistant">
+        <svg class="icon-chat" width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM5.5 4.002h5a.5.5 0 01.5.5v5a.5.5 0 01-.5.5h-2v2.498a.5.5 0 01-.854.354L4.646 9.854A.5.5 0 014.5 9.5v-5a.5.5 0 01.5-.5l.5.002z"/>
+        </svg>
+        <svg class="icon-close" width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/>
+        </svg>
+    </button>
+
+    <div class="chat-widget-panel" id="chatWidgetPanel">
+        <div class="chat-widget-header">
+            <div class="chat-widget-header-icon">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM5.5 4.002h5a.5.5 0 01.5.5v5a.5.5 0 01-.5.5h-2v2.498a.5.5 0 01-.854.354L4.646 9.854A.5.5 0 014.5 9.5v-5a.5.5 0 01.5-.5l.5.002z"/>
+                </svg>
+            </div>
+            <div class="chat-widget-header-text">
+                <h3>Ask AI</h3>
+                <p>Powered by GitHub Copilot</p>
+            </div>
+        </div>
+        <div class="chat-widget-messages" id="widgetMessages">
+            <div class="chat-welcome">
+                <p>👋 Ask me about VS Code contributors!</p>
+                <div class="suggested-questions">
+                    <button class="suggestion-btn" onclick="widgetAsk('Who are the top contributors?')">Top contributors</button>
+                    <button class="suggestion-btn" onclick="widgetAsk('What releases are available?')">Available releases</button>
+                </div>
+            </div>
+        </div>
+        <form class="chat-widget-input" onsubmit="return handleWidgetSubmit(event)">
+            <div class="chat-input-wrapper">
+                <input type="text" id="widgetInput" class="chat-input" placeholder="Ask a question..." autocomplete="off" />
+                <button type="submit" class="chat-send-btn" id="widgetSendBtn">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M1.724 1.053a.5.5 0 00-.714.545l1.403 4.85a.5.5 0 00.397.354l5.69.953c.268.053.268.437 0 .49l-5.69.953a.5.5 0 00-.397.354l-1.403 4.85a.5.5 0 00.714.545l13-6.5a.5.5 0 000-.894l-13-6.5z"/>
+                    </svg>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Chat widget functionality
+        const widgetTrigger = document.getElementById('chatWidgetTrigger');
+        const widgetPanel = document.getElementById('chatWidgetPanel');
+        const widgetMessages = document.getElementById('widgetMessages');
+        const widgetInput = document.getElementById('widgetInput');
+        const widgetSendBtn = document.getElementById('widgetSendBtn');
+        let widgetLoading = false;
+
+        widgetTrigger.addEventListener('click', () => {
+            const isOpen = widgetPanel.classList.toggle('open');
+            widgetTrigger.classList.toggle('active', isOpen);
+            if (isOpen) widgetInput.focus();
+        });
+
+        function addWidgetMessage(content, isUser) {
+            const welcome = widgetMessages.querySelector('.chat-welcome');
+            if (welcome) welcome.style.display = 'none';
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `chat-message ${isUser ? 'user' : 'assistant'}`;
+            msgDiv.innerHTML = `<div class="message-content">${isUser ? escapeHtmlWidget(content) : content}</div>`;
+            widgetMessages.appendChild(msgDiv);
+            widgetMessages.scrollTop = widgetMessages.scrollHeight;
+        }
+
+        function escapeHtmlWidget(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addWidgetLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'chat-message assistant';
+            loadingDiv.id = 'widgetLoading';
+            loadingDiv.innerHTML = '<div class="message-content"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+            widgetMessages.appendChild(loadingDiv);
+            widgetMessages.scrollTop = widgetMessages.scrollHeight;
+        }
+
+        function removeWidgetLoading() {
+            const loading = document.getElementById('widgetLoading');
+            if (loading) loading.remove();
+        }
+
+        async function widgetAsk(query) {
+            if (widgetLoading || !query.trim()) return;
+            widgetLoading = true;
+            widgetSendBtn.disabled = true;
+            widgetInput.value = '';
+            
+            addWidgetMessage(query, true);
+            addWidgetLoading();
+            
+            try {
+                const resp = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                removeWidgetLoading();
+                if (!resp.ok) throw new Error('Request failed');
+                const data = await resp.json();
+                addWidgetMessage(data.answer || 'Sorry, I could not process that.', false);
+            } catch (e) {
+                removeWidgetLoading();
+                addWidgetMessage('Sorry, something went wrong.', false);
+            } finally {
+                widgetLoading = false;
+                widgetSendBtn.disabled = false;
+                widgetInput.focus();
+            }
+        }
+
+        function handleWidgetSubmit(e) {
+            e.preventDefault();
+            widgetAsk(widgetInput.value);
+            return false;
+        }
     </script>
 </body>
 </html>
