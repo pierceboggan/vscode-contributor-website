@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/about", "destination": "/api/about" },
+    { "source": "/contributors", "destination": "/api/contributors" },
+    { "source": "/", "destination": "/api" }
+  ]
+}
