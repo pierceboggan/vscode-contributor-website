@@ -25,6 +25,7 @@ func main() {
 	})
 	http.HandleFunc("/about", web.AboutHandler)
 	http.HandleFunc("/contributors", web.ContributorsHandler)
+	http.HandleFunc("/leaderboard", web.LeaderboardHandler)
 	http.HandleFunc("/api/kudos/", web.KudosHandler)
 	http.HandleFunc("/api/ask", copilotapi.AskHandler)
 

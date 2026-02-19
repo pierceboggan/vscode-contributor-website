@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - VS Code Contributors</title>
+    <title>Leaderboard - VS Code Contributors</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -14,43 +14,73 @@
         </a>
         <a href="/" class="nav-link">Home</a>
         <a href="/contributors" class="nav-link">Contributors</a>
-        <a href="/leaderboard" class="nav-link">Leaderboard</a>
-        <a href="/about" class="nav-link active">About</a>
+        <a href="/leaderboard" class="nav-link active">Leaderboard</a>
+        <a href="/about" class="nav-link">About</a>
         <span class="spacer"></span>
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
             <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>
         </button>
     </nav>
 
-    <main>
-        <div class="about-content">
-            <h1>About This Project</h1>
-            <p class="lead">Visual Studio Code is built in the open by Microsoft and a global community of contributors. This site celebrates the people behind every pull request.</p>
-
-            <h2>What is this?</h2>
-            <p>Each VS Code release includes a "Thank You" section in its <a href="https://code.visualstudio.com/updates" target="_blank" rel="noopener">release notes</a>, listing community members who contributed code during that release cycle. This website scrapes that data and presents it in a browsable, searchable format.</p>
-
-            <h2>How it works</h2>
-            <ul>
-                <li>Release notes are fetched from the official VS Code documentation</li>
-                <li>Contributor names, GitHub handles, and pull request links are extracted</li>
-                <li>Data is organized by release version for easy browsing</li>
-                <li>You can send kudos to show your appreciation</li>
-            </ul>
-
-            <h2>Tech stack</h2>
-            <p>Built with Go, using the standard library for HTTP serving and HTML templates. Deployed on Vercel as serverless functions. Contributor data is scraped in the background and cached in memory.</p>
-            <div class="tech-stack-visual">
-                <span class="tech-tag">Go</span>
-                <span class="tech-tag">HTML Templates</span>
-                <span class="tech-tag">Vercel</span>
-                <span class="tech-tag">GitHub API</span>
-                <span class="tech-tag">CSS Animations</span>
-            </div>
-
-            <h2>Contributing</h2>
-            <p>This project is open source. If you have ideas for improvements or find a bug, feel free to open an issue or submit a pull request.</p>
+    <main class="wide">
+        <div class="leaderboard-header">
+            <h1>Community Leaderboard</h1>
+            <p>The most active community contributors across all VS Code releases &mdash; ranked by pull requests merged and releases contributed to.</p>
         </div>
+
+        {{if .Loading}}
+        <div class="loading-msg">
+            <div class="loading-spinner"></div>
+            <p>Fetching contributor data&hellip;</p>
+            <p>Please refresh the page in a moment.</p>
+        </div>
+        {{else}}
+        <div class="leaderboard-tabs">
+            <a href="/leaderboard?tab=prs" class="leaderboard-tab {{if eq .Tab "prs"}}active{{end}}">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px;margin-right:4px"><path d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>
+                Most Pull Requests
+            </a>
+            <a href="/leaderboard?tab=releases" class="leaderboard-tab {{if eq .Tab "releases"}}active{{end}}">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px;margin-right:4px"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 010 2.474l-5.026 5.026a1.75 1.75 0 01-2.474 0l-6.25-6.25A1.752 1.752 0 011 7.775zM6 5a1 1 0 10-2 0 1 1 0 002 0z"/></svg>
+                Most Releases
+            </a>
+        </div>
+
+        {{if .Entries}}
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Contributor</th>
+                    <th>Pull Requests</th>
+                    <th>Releases</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Entries}}
+                <tr>
+                    <td class="rank-cell {{if eq .Rank 1}}gold{{else if eq .Rank 2}}silver{{else if eq .Rank 3}}bronze{{end}}">
+                        {{if le .Rank 3}}<span class="rank-medal">{{if eq .Rank 1}}🥇{{else if eq .Rank 2}}🥈{{else}}🥉{{end}}</span>{{else}}{{.Rank}}{{end}}
+                    </td>
+                    <td>
+                        <div class="user-cell">
+                            <img src="{{.AvatarURL}}" alt="{{.Name}}" class="avatar" loading="lazy">
+                            <div class="user-cell-info">
+                                <span class="user-cell-name">{{.Name}}</span>
+                                <span class="user-cell-handle"><a href="https://github.com/{{.GitHubUser}}" target="_blank" rel="noopener">@{{.GitHubUser}}</a></span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="count-badge prs">{{.PRCount}}</span></td>
+                    <td><span class="count-badge releases">{{.Releases}}</span></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p>No contributor data available yet.</p>
+        {{end}}
+        {{end}}
     </main>
 
     <footer>

@@ -14,6 +14,7 @@
         </a>
         <a href="/" class="nav-link active">Home</a>
         <a href="/contributors" class="nav-link">Contributors</a>
+        <a href="/leaderboard" class="nav-link">Leaderboard</a>
         <a href="/about" class="nav-link">About</a>
         <span class="spacer"></span>
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
@@ -25,17 +26,39 @@
         <section class="hero">
             <span class="hero-decoration left" aria-hidden="true">{</span>
             <span class="hero-decoration right" aria-hidden="true">}</span>
-            <div class="hero-badge">open source &middot; community driven</div>
-            <h1>Community<br>Contributors</h1>
-            <p class="hero-subtitle">Celebrating the open-source developers who help make Visual Studio Code better with every release.</p>
+            <div class="hero-badge">open source &middot; 200K+ GitHub stars &middot; community powered</div>
+            <h1>We &#x2764;&#xfe0f; Our<br>Community</h1>
+            <p class="hero-subtitle">VS Code is the world's most popular code editor &mdash; and it's built in the open. Every release, hundreds of community developers contribute code, file issues, and make VS Code better for millions of developers worldwide.</p>
             <div class="hero-actions">
                 <a href="/contributors" class="btn btn-primary">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 9H9v2.5a1 1 0 01-2 0V9H4.5a1 1 0 010-2H7V4.5a1 1 0 012 0V7h2.5a1 1 0 010 2z"/></svg>
                     Browse Contributors
                 </a>
-                <a href="/about" class="btn btn-secondary">Learn More</a>
+                <a href="/leaderboard" class="btn btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M10.5 5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zm.061 3.073a4 4 0 10-5.123 0A6.004 6.004 0 002 14a1 1 0 001 1h10a1 1 0 001-1 6.004 6.004 0 00-3.439-5.927z"/></svg>
+                    Leaderboard
+                </a>
             </div>
         </section>
+
+        <div class="stats-bar reveal">
+            <div class="stat-item">
+                <div class="stat-value"><span class="accent">200K+</span></div>
+                <div class="stat-label">GitHub Stars</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">#1</div>
+                <div class="stat-label">Most Used Editor</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value"><span class="accent">1000s</span></div>
+                <div class="stat-label">Community PRs</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">100+</div>
+                <div class="stat-label">Releases</div>
+            </div>
+        </div>
 
         <div class="section-label reveal">features</div>
         <section class="features">
@@ -66,6 +89,11 @@
                     <p>Show appreciation for contributors whose work has made a difference to you.</p>
                 </div>
             </div>
+        </section>
+
+        <section class="community-love reveal">
+            <p>VS Code is one of the most loved open-source projects on GitHub. Our community of contributors makes it possible &mdash; thank you to everyone who has submitted a PR, filed an issue, or helped another developer.</p>
+            <a href="/leaderboard" class="btn btn-secondary">View the Leaderboard</a>
         </section>
     </main>
 

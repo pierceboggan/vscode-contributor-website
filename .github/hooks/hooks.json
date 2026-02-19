@@ -1,0 +1,11 @@
+{
+	"version": 1,
+	"hooks": {
+		"Stop": [
+			{
+				"type": "command",
+				"command": ".github/hooks/stop-hook.sh"
+			}
+		]
+	}
+}
