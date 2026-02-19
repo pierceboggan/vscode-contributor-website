@@ -47,14 +47,14 @@ type VersionOption struct {
 }
 
 type ContributorView struct {
-	Name           string
-	GitHubUser     string
-	AvatarURL      string
-	PRs            []PRView
-	Kudos          int
-	TotalPRCount   int  // Total PRs across all releases
-	Milestone      int  // Current milestone reached (5, 10, 25, etc.)
-	ShowCelebrate  bool // Whether to show celebrate button
+	Name          string
+	GitHubUser    string
+	AvatarURL     string
+	PRs           []PRView
+	Kudos         int
+	TotalPRCount  int  // Total PRs across all releases
+	Milestone     int  // Current milestone reached (5, 10, 25, etc.)
+	ShowCelebrate bool // Whether to show celebrate button
 }
 
 type PRView struct {
@@ -236,7 +236,7 @@ func CelebrateHandler(w http.ResponseWriter, r *http.Request) {
 		// Generate a new celebration video
 		if !heygenClient.IsConfigured() {
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error":   "HeyGen API not configured",
+				"error":      "HeyGen API not configured",
 				"configured": false,
 			})
 			return
