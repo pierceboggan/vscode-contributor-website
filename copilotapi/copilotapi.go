@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -18,10 +17,10 @@ func cleanResponse(output string) string {
 	lines := strings.Split(output, "\n")
 	var cleaned []string
 	skipNextIfIndented := false
-	
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Skip stats lines
 		if strings.HasPrefix(trimmed, "Total usage") ||
 			strings.HasPrefix(trimmed, "API time") ||
@@ -33,7 +32,7 @@ func cleanResponse(output string) string {
 			strings.HasPrefix(trimmed, "gemini-") {
 			continue
 		}
-		
+
 		// Skip tool call output lines (● Read, ● Grep, └ results, etc.)
 		if strings.HasPrefix(trimmed, "●") ||
 			strings.HasPrefix(trimmed, "└") ||
@@ -44,13 +43,13 @@ func cleanResponse(output string) string {
 			skipNextIfIndented = true
 			continue
 		}
-		
+
 		// Skip indented continuation lines after tool calls
 		if skipNextIfIndented && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
 			continue
 		}
 		skipNextIfIndented = false
-		
+
 		cleaned = append(cleaned, line)
 	}
 	return strings.TrimSpace(strings.Join(cleaned, "\n"))
@@ -94,8 +93,7 @@ func AskHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Call copilot CLI directly
 	cmd := exec.CommandContext(ctx, "copilot", "-p", prompt, "--allow-all")
-	// Create new process group so signals don't propagate from parent
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	setProcGroup(cmd)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
