@@ -12,7 +12,7 @@ import (
 const (
 	baseURL = "https://api.heygen.com"
 	// Default avatar and voice - can be overridden via env vars
-	defaultAvatarID = "Angela-inblackskirt-20220820"
+	defaultAvatarID = "Abigail_expressive_2024112501"
 	defaultVoiceID  = "1bd001e7e50f421d891986aad5158bc8" // Sara - friendly female voice
 )
 

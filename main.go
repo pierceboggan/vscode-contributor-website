@@ -31,6 +31,10 @@ func main() {
 	http.HandleFunc("/api/celebrate/", web.CelebrateHandler)
 	http.HandleFunc("/api/milestone/", web.CheckMilestone)
 	http.HandleFunc("/api/ask", copilotapi.AskHandler)
+	http.HandleFunc("/contributor/", web.ContributorProfileHandler)
+	http.HandleFunc("/search", web.SearchHandler)
+	http.HandleFunc("/api/search", web.SearchAPIHandler)
+	http.HandleFunc("/card/", web.CardHandler)
 
 	log.Println("Server starting on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

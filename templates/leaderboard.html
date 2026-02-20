@@ -55,6 +55,7 @@
                     <th>Contributor</th>
                     <th>Pull Requests</th>
                     <th>Releases</th>
+                    <th>Celebrate</th>
                 </tr>
             </thead>
             <tbody>
@@ -74,6 +75,11 @@
                     </td>
                     <td><span class="count-badge prs">{{.PRCount}}</span></td>
                     <td><span class="count-badge releases">{{.Releases}}</span></td>
+                    <td>
+                        <button class="celebrate-btn" onclick="generateCelebration(this, '{{.GitHubUser}}', '{{.Name}}', {{.PRCount}})">
+                            🎉 Video
+                        </button>
+                    </td>
                 </tr>
                 {{end}}
             </tbody>
@@ -114,6 +120,143 @@
             document.documentElement.setAttribute('data-theme', saved);
             updateToggleUI(saved);
         })();
+    </script>
+
+    <!-- Video Celebration Modal -->
+    <div class="video-modal-overlay" id="videoModal">
+        <div class="video-modal">
+            <button class="video-modal-close" onclick="closeVideoModal()">&times;</button>
+            <h2>🎉 Celebration Video</h2>
+            <div class="video-modal-content" id="videoModalContent">
+                <div class="video-modal-loading">
+                    <div class="spinner"></div>
+                    <p>Generating your personalized celebration video...</p>
+                    <p id="videoStatus">This may take a minute</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let videoPollingInterval = null;
+
+        function openVideoModal() {
+            document.getElementById('videoModal').classList.add('active');
+        }
+
+        function closeVideoModal() {
+            document.getElementById('videoModal').classList.remove('active');
+            if (videoPollingInterval) {
+                clearInterval(videoPollingInterval);
+                videoPollingInterval = null;
+            }
+        }
+
+        async function generateCelebration(btn, username, contributorName, prCount) {
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ ...';
+            
+            openVideoModal();
+            document.getElementById('videoModalContent').innerHTML = `
+                <div class="video-modal-loading">
+                    <div class="spinner"></div>
+                    <p>Creating a personalized video for <strong>${contributorName}</strong></p>
+                    <p id="videoStatus">Celebrating ${prCount} Pull Requests!</p>
+                </div>
+            `;
+
+            try {
+                const resp = await fetch('/api/celebrate/' + encodeURIComponent(username), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contributor_name: contributorName,
+                        milestone: prCount
+                    })
+                });
+
+                const data = await resp.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (data.video_id) {
+                    pollVideoStatus(username, data.video_id, btn, contributorName, originalText);
+                }
+            } catch (e) {
+                console.error('Celebration error:', e);
+                document.getElementById('videoModalContent').innerHTML = `
+                    <div class="video-modal-loading">
+                        <p>😔 Sorry, couldn't generate the video.</p>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">${e.message}</p>
+                    </div>
+                `;
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        function pollVideoStatus(username, videoId, btn, contributorName, originalText) {
+            let attempts = 0;
+            const maxAttempts = 60;
+
+            videoPollingInterval = setInterval(async () => {
+                attempts++;
+                
+                if (attempts > maxAttempts) {
+                    clearInterval(videoPollingInterval);
+                    document.getElementById('videoStatus').textContent = 'Video is taking longer than expected...';
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    return;
+                }
+
+                try {
+                    const resp = await fetch(`/api/celebrate/${encodeURIComponent(username)}?video_id=${videoId}`);
+                    const data = await resp.json();
+
+                    if (data.status === 'completed' && data.video_url) {
+                        clearInterval(videoPollingInterval);
+                        videoPollingInterval = null;
+                        
+                        document.getElementById('videoModalContent').innerHTML = `
+                            <video controls autoplay>
+                                <source src="${data.video_url}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);">
+                                Congratulations, ${contributorName}! 🎉
+                            </p>
+                        `;
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    } else if (data.status === 'failed') {
+                        clearInterval(videoPollingInterval);
+                        document.getElementById('videoModalContent').innerHTML = `
+                            <div class="video-modal-loading">
+                                <p>😔 Video generation failed.</p>
+                            </div>
+                        `;
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    } else {
+                        document.getElementById('videoStatus').textContent = `Processing... (${attempts * 5}s)`;
+                    }
+                } catch (e) {
+                    console.error('Poll error:', e);
+                }
+            }, 5000);
+        }
+
+        document.getElementById('videoModal').addEventListener('click', function(e) {
+            if (e.target === this) closeVideoModal();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeVideoModal();
+        });
     </script>
 
     <!-- Floating Chat Widget -->

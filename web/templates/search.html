@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Contributors - VS Code Contributors</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <a href="/" class="nav-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M29.01,5.03,23.244,2.254a1.742,1.742,0,0,0-1.989.338L2.38,19.8A1.166,1.166,0,0,0,2.3,21.447c.025.027.05.053.077.077l1.541,1.4a1.165,1.165,0,0,0,1.489.066L28.142,5.75A1.158,1.158,0,0,1,30,6.672V6.605A1.748,1.748,0,0,0,29.01,5.03Z" style="fill:#0065a9"/><path d="M29.01,26.97l-5.766,2.777a1.745,1.745,0,0,1-1.989-.338L2.38,12.2A1.166,1.166,0,0,1,2.3,10.553c.025-.027.05-.053.077-.077l1.541-1.4A1.165,1.165,0,0,1,5.41,9.01L28.142,26.25A1.158,1.158,0,0,0,30,25.328V25.4A1.749,1.749,0,0,1,29.01,26.97Z" style="fill:#007acc"/><path d="M23.244,29.747a1.745,1.745,0,0,1-1.989-.338A1.025,1.025,0,0,0,23,28.684V3.316a1.024,1.024,0,0,0-1.749-.724,1.744,1.744,0,0,1,1.989-.339l5.765,2.772A1.748,1.748,0,0,1,30,6.6V25.4a1.748,1.748,0,0,1-.991,1.576Z" style="fill:#1f9cf0"/></svg>
+            <span>VS Code Contributors</span>
+        </a>
+        <a href="/" class="nav-link">Home</a>
+        <a href="/contributors" class="nav-link">Contributors</a>
+        <a href="/leaderboard" class="nav-link">Leaderboard</a>
+        <a href="/ask" class="nav-link">Ask AI</a>
+        <a href="/about" class="nav-link">About</a>
+        <span class="spacer"></span>
+        <form action="/search" method="GET" class="nav-search-form">
+            <input type="text" name="q" placeholder="Search contributors..." value="{{.Query}}" class="nav-search-input">
+        </form>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>
+        </button>
+    </nav>
+
+    <main class="wide">
+        <div class="search-header">
+            <h1>Search Contributors</h1>
+            <p>Find community contributors by username or name</p>
+        </div>
+
+        <form action="/search" method="GET" class="search-form">
+            <div class="search-input-wrapper">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="search-icon">
+                    <path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.1zM12 6.5a5.5 5.5 0 11-11 0 5.5 5.5 0 0111 0z"/>
+                </svg>
+                <input type="text" name="q" placeholder="Search by username or name..." value="{{.Query}}" class="search-input" autofocus>
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+
+        {{if .Query}}
+        <div class="search-results">
+            {{if .Results}}
+            <p class="search-results-count">Found {{len .Results}} contributor{{if ne (len .Results) 1}}s{{end}} matching "{{.Query}}"</p>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Contributor</th>
+                        <th>Pull Requests</th>
+                        <th>Releases</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Results}}
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <img src="{{.AvatarURL}}" alt="{{.Name}}" class="avatar" loading="lazy">
+                                <div class="user-cell-info">
+                                    <span class="user-cell-name">{{.Name}}</span>
+                                    <span class="user-cell-handle"><a href="/contributors?q={{.GitHubUser}}">@{{.GitHubUser}}</a></span>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="count-badge prs">{{.TotalPRs}}</span></td>
+                        <td><span class="count-badge releases">{{.ReleaseCount}}</span></td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <div class="no-results">
+                <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" style="opacity:0.3">
+                    <path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.1zM12 6.5a5.5 5.5 0 11-11 0 5.5 5.5 0 0111 0z"/>
+                </svg>
+                <p>No contributors found matching "{{.Query}}"</p>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Try a different search term</p>
+            </div>
+            {{end}}
+        </div>
+        {{end}}
+    </main>
+
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-left">
+                <span class="status-dot"></span>
+                <span>Built with care</span>
+            </div>
+            <div class="footer-right">
+                Data sourced from <a href="https://code.visualstudio.com/updates" target="_blank" rel="noopener">VS Code Release Notes</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateToggleUI(next);
+        }
+        function updateToggleUI(theme) {
+            document.getElementById('theme-icon').textContent = theme === 'light' ? '🌙' : '☀️';
+            document.getElementById('theme-label').textContent = theme === 'light' ? 'Dark' : 'Light';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+            updateToggleUI(saved);
+        })();
+    </script>
+</body>
+</html>

@@ -9,26 +9,48 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 )
 
-// cleanResponse removes CLI stats output and keeps just the response text
+// cleanResponse removes CLI stats output and tool call traces, keeps just the response text
 func cleanResponse(output string) string {
-	// Remove lines starting with common CLI output patterns
 	lines := strings.Split(output, "\n")
 	var cleaned []string
+	skipNextIfIndented := false
+	
 	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
 		// Skip stats lines
-		if strings.HasPrefix(line, "Total usage") ||
-			strings.HasPrefix(line, "API time") ||
-			strings.HasPrefix(line, "Total session") ||
-			strings.HasPrefix(line, "Total code") ||
-			strings.HasPrefix(line, "Breakdown by") ||
-			strings.HasPrefix(line, " claude-") ||
-			strings.HasPrefix(line, " gpt-") ||
-			strings.HasPrefix(line, " gemini-") {
+		if strings.HasPrefix(trimmed, "Total usage") ||
+			strings.HasPrefix(trimmed, "API time") ||
+			strings.HasPrefix(trimmed, "Total session") ||
+			strings.HasPrefix(trimmed, "Total code") ||
+			strings.HasPrefix(trimmed, "Breakdown by") ||
+			strings.HasPrefix(trimmed, "claude-") ||
+			strings.HasPrefix(trimmed, "gpt-") ||
+			strings.HasPrefix(trimmed, "gemini-") {
 			continue
 		}
+		
+		// Skip tool call output lines (● Read, ● Grep, └ results, etc.)
+		if strings.HasPrefix(trimmed, "●") ||
+			strings.HasPrefix(trimmed, "└") ||
+			strings.HasPrefix(trimmed, "├") ||
+			strings.HasPrefix(line, " ●") ||
+			strings.HasPrefix(line, " └") ||
+			strings.HasPrefix(line, " ├") {
+			skipNextIfIndented = true
+			continue
+		}
+		
+		// Skip indented continuation lines after tool calls
+		if skipNextIfIndented && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
+			continue
+		}
+		skipNextIfIndented = false
+		
 		cleaned = append(cleaned, line)
 	}
 	return strings.TrimSpace(strings.Join(cleaned, "\n"))
@@ -62,7 +84,9 @@ func AskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	// Use a background context with manual timeout to avoid HTTP request cancellation
+	// killing the copilot process prematurely
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	// Simple prompt - let Copilot figure out context from cwd
@@ -70,6 +94,8 @@ func AskHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Call copilot CLI directly
 	cmd := exec.CommandContext(ctx, "copilot", "-p", prompt, "--allow-all")
+	// Create new process group so signals don't propagate from parent
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -78,7 +104,21 @@ func AskHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := cmd.Run()
 	if err != nil {
-		log.Printf("copilotapi: CLI error: %v, stderr: %s", err, stderr.String())
+		log.Printf("copilotapi: CLI error: %v, stderr: %s, stdout: %s", err, stderr.String(), stdout.String())
+		// Check if we got partial output that might be useful
+		if stdout.Len() > 0 {
+			answer := stripAnsi(stdout.String())
+			answer = cleanResponse(answer)
+			if len(answer) > 50 {
+				// Got substantial output before error, use it
+				log.Printf("copilotapi: using partial response (%d chars)", len(answer))
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{
+					"answer": answer,
+				})
+				return
+			}
+		}
 		http.Error(w, "Copilot service unavailable", http.StatusServiceUnavailable)
 		return
 	}

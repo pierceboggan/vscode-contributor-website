@@ -971,29 +971,29 @@ main.home { max-width: 960px; }
 
 /* --- Celebrate Button --- */
 .celebrate-btn {
-    background: linear-gradient(135deg, var(--accent), var(--kudos));
-    border: none;
-    color: #fff;
-    padding: .4rem .9rem;
+    background: transparent;
+    border: 1px solid var(--kudos);
+    color: var(--kudos);
+    padding: .35rem .75rem;
     border-radius: 99px;
     cursor: pointer;
     font-size: .75rem;
     font-family: var(--font-body);
-    font-weight: 600;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
-    gap: .4rem;
+    gap: .35rem;
     transition: all .25s var(--ease-out-expo);
-    box-shadow: 0 2px 8px rgba(0, 120, 212, .3);
 }
 
 .celebrate-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 16px rgba(0, 120, 212, .4);
+    background: rgba(247, 120, 186, .15);
+    box-shadow: 0 0 16px rgba(247, 120, 186, .2);
+    transform: translateY(-1px);
 }
 
 .celebrate-btn:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }

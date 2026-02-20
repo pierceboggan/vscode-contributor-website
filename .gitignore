@@ -1,3 +1,32 @@
+# Build artifacts
+server
+vscode-contributor-website
+*.exe
+
+# Logs
+*.log
+server.log
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
 .vercel
+
+# Development
 tmp/
+.air.toml
+
+# Skills screenshots (generated)
 .github/skills/webapp-validation/screenshots/

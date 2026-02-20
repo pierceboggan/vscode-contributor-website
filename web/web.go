@@ -32,6 +32,14 @@ var (
 	validUser  = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?$`)
 )
 
+// formatVersion converts "v1_109" to "v1.109"
+func formatVersion(id string) string {
+	// "v1_109" -> "v1.109"
+	s := strings.TrimPrefix(id, "v")
+	s = strings.Replace(s, "_", ".", 1)
+	return "v" + s
+}
+
 // View models
 type ContributorsPageData struct {
 	Versions     []VersionOption
@@ -55,6 +63,7 @@ type ContributorView struct {
 	TotalPRCount  int  // Total PRs across all releases
 	Milestone     int  // Current milestone reached (5, 10, 25, etc.)
 	ShowCelebrate bool // Whether to show celebrate button
+	IsFirstTime   bool // Whether this is the contributor's first release
 }
 
 type PRView struct {
@@ -168,6 +177,7 @@ func ContributorsHandler(w http.ResponseWriter, r *http.Request) {
 			TotalPRCount:  totalPRs,
 			Milestone:     milestone,
 			ShowCelebrate: milestone >= 5 && heygenClient.IsConfigured(),
+			IsFirstTime:   scraper.IsFirstTimeContributor(c.GitHubUser, selectedVersion),
 		}
 		for _, pr := range c.PRs {
 			cv.PRs = append(cv.PRs, PRView{
@@ -373,10 +383,92 @@ type LeaderboardEntry struct {
 	Releases   int
 }
 
+// ContributorProfileData is the view model for the contributor profile page.
+type ContributorProfileData struct {
+	GitHubUser           string
+	Name                 string
+	AvatarURL            string
+	TotalPRs             int
+	ReleaseCount         int
+	FirstRelease         string
+	LatestRelease        string
+	FirstReleaseDisplay  string
+	LatestReleaseDisplay string
+	Releases             []ProfileRelease
+	Kudos                int
+}
+
+// ProfileRelease holds PRs for a release on the profile page.
+type ProfileRelease struct {
+	Version     string
+	DisplayName string
+	PRs         []PRView
+}
+
 type LeaderboardPageData struct {
 	Tab     string // "prs" or "releases"
 	Entries []LeaderboardEntry
 	Loading bool
+}
+
+func ContributorProfileHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract username from URL path: /contributor/{username}
+	username := strings.TrimPrefix(r.URL.Path, "/contributor/")
+	if username == "" || !validUser.MatchString(username) {
+		http.NotFound(w, r)
+		return
+	}
+
+	history := scraper.GetContributorHistory(username)
+	if history == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Build profile data
+	data := ContributorProfileData{
+		GitHubUser:           history.GitHubUser,
+		Name:                 history.Name,
+		AvatarURL:            history.AvatarURL,
+		TotalPRs:             history.TotalPRs,
+		ReleaseCount:         history.ReleaseCount,
+		FirstRelease:         history.FirstRelease,
+		LatestRelease:        history.LatestRelease,
+		FirstReleaseDisplay:  formatVersion(history.FirstRelease),
+		LatestReleaseDisplay: formatVersion(history.LatestRelease),
+	}
+
+	// Convert releases from PRsByRelease map
+	versions := scraper.GetAvailableVersions()
+	for _, v := range versions {
+		prs, ok := history.PRsByRelease[v.ID]
+		if !ok || len(prs) == 0 {
+			continue
+		}
+		pr := ProfileRelease{
+			Version:     v.ID,
+			DisplayName: v.Display,
+		}
+		for _, p := range prs {
+			pr.PRs = append(pr.PRs, PRView{
+				Title:  p.Title,
+				URL:    p.URL,
+				Repo:   p.Repo,
+				Number: p.Number,
+			})
+		}
+		data.Releases = append(data.Releases, pr)
+	}
+
+	// Get kudos count
+	kudosMu.RLock()
+	data.Kudos = kudosStore[history.GitHubUser]
+	kudosMu.RUnlock()
+
+	if err := templates.ExecuteTemplate(w, "contributor.html", data); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Printf("Template error: %v", err)
+	}
 }
 
 func LeaderboardHandler(w http.ResponseWriter, r *http.Request) {
@@ -480,4 +572,65 @@ func LeaderboardHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Printf("Template error: %v", err)
 	}
+}
+
+// Search data types
+type SearchResult struct {
+	GitHubUser   string
+	Name         string
+	AvatarURL    string
+	TotalPRs     int
+	ReleaseCount int
+}
+
+type SearchPageData struct {
+	Query   string
+	Results []SearchResult
+}
+
+func SearchHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	data := SearchPageData{Query: query}
+
+	if query != "" {
+		results := scraper.SearchContributors(query)
+		for _, res := range results {
+			data.Results = append(data.Results, SearchResult{
+				GitHubUser:   res.GitHubUser,
+				Name:         res.Name,
+				AvatarURL:    res.AvatarURL,
+				TotalPRs:     res.TotalPRs,
+				ReleaseCount: res.ReleaseCount,
+			})
+		}
+	}
+
+	if err := templates.ExecuteTemplate(w, "search.html", data); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Printf("Template error: %v", err)
+	}
+}
+
+func SearchAPIHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	w.Header().Set("Content-Type", "application/json")
+
+	if query == "" {
+		json.NewEncoder(w).Encode([]SearchResult{})
+		return
+	}
+
+	results := scraper.SearchContributors(query)
+	apiResults := make([]SearchResult, 0, len(results))
+	for _, res := range results {
+		apiResults = append(apiResults, SearchResult{
+			GitHubUser:   res.GitHubUser,
+			Name:         res.Name,
+			AvatarURL:    res.AvatarURL,
+			TotalPRs:     res.TotalPRs,
+			ReleaseCount: res.ReleaseCount,
+		})
+	}
+
+	json.NewEncoder(w).Encode(apiResults)
 }

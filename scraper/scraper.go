@@ -28,10 +28,31 @@ type Contributor struct {
 	PRs        []PR
 }
 
+// ContributorSearchResult represents aggregated contributor data across releases.
+type ContributorSearchResult struct {
+	GitHubUser   string
+	Name         string
+	AvatarURL    string
+	TotalPRs     int
+	ReleaseCount int
+}
+
 type Release struct {
 	Version      string
 	DisplayName  string
 	Contributors []Contributor
+}
+
+// ContributorHistory aggregates a contributor's activity across all releases.
+type ContributorHistory struct {
+	GitHubUser    string
+	Name          string
+	AvatarURL     string
+	TotalPRs      int
+	ReleaseCount  int
+	FirstRelease  string            // version of first contribution
+	LatestRelease string            // version of most recent contribution
+	PRsByRelease  map[string][]PR   // version -> PRs
 }
 
 // VersionInfo holds a version identifier and its display name.
@@ -103,6 +124,125 @@ func GetReleases() []Release {
 		}
 	}
 	return results
+}
+
+// SearchContributors searches all cached releases for contributors matching the query.
+// The search is case-insensitive and matches partial GitHub usernames.
+func SearchContributors(query string) []ContributorSearchResult {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	query = strings.ToLower(query)
+	if query == "" {
+		return nil
+	}
+
+	// Aggregate data by GitHub username (lowercase for deduplication)
+	type aggregated struct {
+		GitHubUser   string
+		Name         string
+		AvatarURL    string
+		TotalPRs     int
+		ReleaseCount int
+	}
+	byUser := make(map[string]*aggregated)
+
+	for _, release := range cached {
+		for _, contrib := range release.Contributors {
+			userLower := strings.ToLower(contrib.GitHubUser)
+			if !strings.Contains(userLower, query) {
+				continue
+			}
+
+			if agg, exists := byUser[userLower]; exists {
+				agg.TotalPRs += len(contrib.PRs)
+				agg.ReleaseCount++
+			} else {
+				byUser[userLower] = &aggregated{
+					GitHubUser:   contrib.GitHubUser,
+					Name:         contrib.Name,
+					AvatarURL:    contrib.AvatarURL,
+					TotalPRs:     len(contrib.PRs),
+					ReleaseCount: 1,
+				}
+			}
+		}
+	}
+
+	// Convert to result slice
+	results := make([]ContributorSearchResult, 0, len(byUser))
+	for _, agg := range byUser {
+		results = append(results, ContributorSearchResult{
+			GitHubUser:   agg.GitHubUser,
+			Name:         agg.Name,
+			AvatarURL:    agg.AvatarURL,
+			TotalPRs:     agg.TotalPRs,
+			ReleaseCount: agg.ReleaseCount,
+		})
+	}
+
+	// Sort by TotalPRs descending for consistent ordering
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].TotalPRs > results[j].TotalPRs
+	})
+
+	return results
+}
+
+// GetContributorHistory returns aggregated contribution history for a user.
+// Returns nil if the user is not found in any cached release.
+func GetContributorHistory(username string) *ContributorHistory {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	history := &ContributorHistory{
+		PRsByRelease: make(map[string][]PR),
+	}
+
+	usernameLower := strings.ToLower(username)
+	var firstVersion, latestVersion string
+	var firstVersionNum, latestVersionNum int
+
+	for version, release := range cached {
+		for _, contrib := range release.Contributors {
+			if strings.ToLower(contrib.GitHubUser) == usernameLower {
+				// Set user info from first match
+				if history.GitHubUser == "" {
+					history.GitHubUser = contrib.GitHubUser
+					history.Name = contrib.Name
+					history.AvatarURL = contrib.AvatarURL
+				}
+
+				// Add PRs for this release
+				if len(contrib.PRs) > 0 {
+					history.PRsByRelease[version] = append(history.PRsByRelease[version], contrib.PRs...)
+					history.TotalPRs += len(contrib.PRs)
+				}
+				history.ReleaseCount++
+
+				// Track first and latest release
+				vNum := versionNumber(version)
+				if firstVersion == "" || vNum < firstVersionNum {
+					firstVersion = version
+					firstVersionNum = vNum
+				}
+				if latestVersion == "" || vNum > latestVersionNum {
+					latestVersion = version
+					latestVersionNum = vNum
+				}
+				break // Found contributor in this release, move to next
+			}
+		}
+	}
+
+	// Return nil if user not found
+	if history.GitHubUser == "" {
+		return nil
+	}
+
+	history.FirstRelease = firstVersion
+	history.LatestRelease = latestVersion
+	return history
 }
 
 // Refresh discovers available versions and pre-fetches recent ones.
@@ -363,4 +503,35 @@ func extractDescription(text, prLink string) string {
 	desc = strings.TrimPrefix(desc, ":")
 	desc = strings.TrimSpace(desc)
 	return desc
+}
+
+// IsFirstTimeContributor returns true if this is the first release where the user contributed.
+// It checks all cached releases with versions BEFORE the given version.
+func IsFirstTimeContributor(username string, version string) bool {
+	versionsMu.RLock()
+	versions := availableVersions
+	versionsMu.RUnlock()
+
+	targetNum := versionNumber(version)
+
+	mu.RLock()
+	defer mu.RUnlock()
+
+	for _, v := range versions {
+		// Only check releases BEFORE the given version
+		if versionNumber(v.ID) >= targetNum {
+			continue
+		}
+		rel, ok := cached[v.ID]
+		if !ok {
+			continue
+		}
+		for _, c := range rel.Contributors {
+			if strings.EqualFold(c.GitHubUser, username) {
+				// User contributed in an earlier release
+				return false
+			}
+		}
+	}
+	return true
 }

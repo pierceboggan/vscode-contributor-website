@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Name}} (@{{.GitHubUser}}) - VS Code Contributors</title>
+    <link rel="stylesheet" href="/static/style.css">
+    
+    <!-- Open Graph meta tags for social sharing -->
+    <meta property="og:title" content="{{.Name}}'s VS Code Contributions">
+    <meta property="og:description" content="{{.Name}} has contributed {{.TotalPRs}} PRs across {{.ReleaseCount}} VS Code releases. Check out their contributions!">
+    <meta property="og:image" content="/card/{{.GitHubUser}}">
+    <meta property="og:url" content="/contributor/{{.GitHubUser}}">
+    <meta property="og:type" content="profile">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{.Name}}'s VS Code Contributions">
+    <meta name="twitter:description" content="{{.TotalPRs}} PRs across {{.ReleaseCount}} releases">
+    <meta name="twitter:image" content="/card/{{.GitHubUser}}">
+</head>
+<body>
+    <nav>
+        <a href="/" class="nav-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M29.01,5.03,23.244,2.254a1.742,1.742,0,0,0-1.989.338L2.38,19.8A1.166,1.166,0,0,0,2.3,21.447c.025.027.05.053.077.077l1.541,1.4a1.165,1.165,0,0,0,1.489.066L28.142,5.75A1.158,1.158,0,0,1,30,6.672V6.605A1.748,1.748,0,0,0,29.01,5.03Z" style="fill:#0065a9"/><path d="M29.01,26.97l-5.766,2.777a1.745,1.745,0,0,1-1.989-.338L2.38,12.2A1.166,1.166,0,0,1,2.3,10.553c.025-.027.05-.053.077-.077l1.541-1.4A1.165,1.165,0,0,1,5.41,9.01L28.142,26.25A1.158,1.158,0,0,0,30,25.328V25.4A1.749,1.749,0,0,1,29.01,26.97Z" style="fill:#007acc"/><path d="M23.244,29.747a1.745,1.745,0,0,1-1.989-.338A1.025,1.025,0,0,0,23,28.684V3.316a1.024,1.024,0,0,0-1.749-.724,1.744,1.744,0,0,1,1.989-.339l5.765,2.772A1.748,1.748,0,0,1,30,6.6V25.4a1.748,1.748,0,0,1-.991,1.576Z" style="fill:#1f9cf0"/></svg>
+            <span>VS Code Contributors</span>
+        </a>
+        <a href="/" class="nav-link">Home</a>
+        <a href="/contributors" class="nav-link">Contributors</a>
+        <a href="/leaderboard" class="nav-link">Leaderboard</a>
+        <a href="/ask" class="nav-link">Ask AI</a>
+        <a href="/about" class="nav-link">About</a>
+        <span class="spacer"></span>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>
+        </button>
+    </nav>
+
+    <main class="wide">
+        <div class="profile-header">
+            <img src="{{.AvatarURL}}" alt="{{.Name}}" class="profile-avatar">
+            <div class="profile-info">
+                <h1>{{.Name}}</h1>
+                <a href="https://github.com/{{.GitHubUser}}" class="profile-github" target="_blank" rel="noopener">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    @{{.GitHubUser}}
+                </a>
+            </div>
+        </div>
+
+        <div class="profile-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{.TotalPRs}}</div>
+                <div class="stat-label">Pull Requests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{.ReleaseCount}}</div>
+                <div class="stat-label">Releases</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{.FirstReleaseDisplay}}</div>
+                <div class="stat-label">First Release</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{.LatestReleaseDisplay}}</div>
+                <div class="stat-label">Latest Release</div>
+            </div>
+        </div>
+
+        <div class="profile-actions">
+            <button class="kudos-btn" data-user="{{.GitHubUser}}" onclick="sendKudos(this)">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.655 14.916v-.001h-.002l-.006-.003-.018-.01a22 22 0 01-.306-.17 27.4 27.4 0 01-3.535-2.44C2.088 10.882.5 8.992.5 6.5a4.5 4.5 0 017.5-3.35A4.5 4.5 0 0115.5 6.5c0 2.492-1.588 4.382-3.288 5.792a27.4 27.4 0 01-3.842 2.611l-.018.01-.006.003h-.002z"/></svg>
+                <span class="kudos-count">{{.Kudos}}</span> Kudos
+            </button>
+            <a href="/card/{{.GitHubUser}}" class="btn btn-secondary" title="Share Card">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1.75v3.5a.75.75 0 001.5 0v-5a.75.75 0 00-.75-.75h-5a.75.75 0 000 1.5h3.19L5.22 5.72a.75.75 0 001.06 1.06l4.72-4.72z"/><path d="M3.5 6.75c0-.69.56-1.25 1.25-1.25h2.5a.75.75 0 000-1.5h-2.5A2.75 2.75 0 002 6.75v5.5A2.75 2.75 0 004.75 15h5.5A2.75 2.75 0 0013 12.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25h-5.5c-.69 0-1.25-.56-1.25-1.25v-5.5z"/></svg>
+                Share Card
+            </a>
+        </div>
+
+        <h2 class="section-title">Contributions by Release</h2>
+
+        <div class="release-contributions">
+            {{range .Releases}}
+            <details class="release-section" open>
+                <summary class="release-header">
+                    <span class="release-version">v{{.DisplayName}}</span>
+                    <span class="release-pr-count">{{len .PRs}} PR{{if ne (len .PRs) 1}}s{{end}}</span>
+                </summary>
+                <div class="release-prs">
+                    {{range .PRs}}
+                    <div class="pr-item">
+                        <a href="{{.URL}}" target="_blank" rel="noopener">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -2px; margin-right: 4px;"><path d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>
+                            PR #{{.Number}}
+                        </a>
+                        {{if .Title}}<span class="pr-title">{{.Title}}</span>{{end}}
+                        {{if .Repo}}<span class="pr-repo">{{.Repo}}</span>{{end}}
+                    </div>
+                    {{end}}
+                </div>
+            </details>
+            {{end}}
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-left">
+                <span class="status-dot"></span>
+                <span>Built with care</span>
+            </div>
+            <div class="footer-right">
+                Data sourced from <a href="https://code.visualstudio.com/updates" target="_blank" rel="noopener">VS Code Release Notes</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateToggleUI(next);
+        }
+        function updateToggleUI(theme) {
+            document.getElementById('theme-icon').textContent = theme === 'light' ? '🌙' : '☀️';
+            document.getElementById('theme-label').textContent = theme === 'light' ? 'Dark' : 'Light';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+            updateToggleUI(saved);
+        })();
+
+        function createFloatingHearts(btn) {
+            const hearts = ['❤️', '💕', '💖', '💗', '💓'];
+            const rect = btn.getBoundingClientRect();
+            const count = 5 + Math.floor(Math.random() * 4);
+            
+            for (let i = 0; i < count; i++) {
+                const heart = document.createElement('span');
+                heart.className = 'floating-heart';
+                heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+                heart.style.left = (rect.left + rect.width / 2 + (Math.random() - 0.5) * 40) + 'px';
+                heart.style.top = (rect.top + window.scrollY) + 'px';
+                heart.style.setProperty('--heart-rotate', (Math.random() - 0.5) * 40 + 'deg');
+                heart.style.animationDuration = (0.8 + Math.random() * 0.4) + 's';
+                heart.style.animationDelay = (i * 0.05) + 's';
+                document.body.appendChild(heart);
+                setTimeout(() => heart.remove(), 1500);
+            }
+        }
+
+        async function sendKudos(btn) {
+            const user = btn.dataset.user;
+            try {
+                const resp = await fetch('/api/kudos/' + encodeURIComponent(user), { method: 'POST' });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    btn.querySelector('.kudos-count').textContent = data.count;
+                    btn.classList.add('kudos-clicked');
+                    createFloatingHearts(btn);
+                    setTimeout(() => btn.classList.remove('kudos-clicked'), 600);
+                }
+            } catch (e) {
+                console.error('Kudos error:', e);
+            }
+        }
+    </script>
+
+    <style>
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 3px solid var(--border-color);
+        }
+        .profile-info h1 {
+            margin: 0 0 0.5rem;
+            font-size: 2rem;
+        }
+        .profile-github {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        .profile-github:hover {
+            color: var(--accent);
+        }
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        .profile-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            text-decoration: none;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            background: var(--hover-bg);
+        }
+        .section-title {
+            margin: 2rem 0 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        .release-contributions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .release-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .release-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .release-header:hover {
+            background: var(--hover-bg);
+        }
+        .release-version {
+            font-weight: 600;
+            color: var(--accent);
+        }
+        .release-pr-count {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            background: var(--hover-bg);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+        }
+        .release-prs {
+            padding: 0 1.25rem 1rem;
+        }
+        .pr-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: baseline;
+        }
+        .pr-item:last-child {
+            border-bottom: none;
+        }
+        .pr-item a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .pr-item a:hover {
+            text-decoration: underline;
+        }
+        .pr-title {
+            color: var(--text-primary);
+        }
+        .pr-repo {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            background: var(--hover-bg);
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+        }
+        details[open] .release-header::before {
+            content: '▼';
+            margin-right: 0.5rem;
+            font-size: 0.75rem;
+        }
+        details:not([open]) .release-header::before {
+            content: '▶';
+            margin-right: 0.5rem;
+            font-size: 0.75rem;
+        }
+    </style>
+</body>
+</html>
